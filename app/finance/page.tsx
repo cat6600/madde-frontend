@@ -71,12 +71,7 @@ export default function FinancePage() {
     fetchInvestments();
   }, []);
 
-  const {
-    totalAmount,
-    totalShares,
-    roundCount,
-    shareholderList,
-  } = useMemo(() => {
+  const { totalAmount, totalShares, roundCount, shareholderList } = useMemo(() => {
     const totalAmount = investments.reduce(
       (sum, i) => sum + (i.amount || 0),
       0
@@ -323,15 +318,20 @@ export default function FinancePage() {
                 <InputNumber
                   placeholder="주식수"
                   min={0}
-                  formatter={(v) =>
-                    v
-                      ? v
-                          .toString()
-                          .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                      : ""
+                  formatter={(value: string | number | null | undefined) =>
+                    value == null || value === ""
+                      ? ""
+                      : String(value).replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ","
+                        )
                   }
-                  parser={(v) =>
-                    v ? Number(v.toString().replace(/,/g, "")) : 0
+                  parser={(value: string | number | null | undefined) =>
+                    value == null || value === ""
+                      ? 0
+                      : Number(
+                          String(value).replace(/,/g, "")
+                        )
                   }
                 />
               </Form.Item>
@@ -343,15 +343,20 @@ export default function FinancePage() {
                 <InputNumber
                   placeholder="투자금"
                   min={0}
-                  formatter={(v) =>
-                    v
-                      ? v
-                          .toString()
-                          .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                      : ""
+                  formatter={(value: string | number | null | undefined) =>
+                    value == null || value === ""
+                      ? ""
+                      : String(value).replace(
+                          /\B(?=(\d{3})+(?!\d))/g,
+                          ","
+                        )
                   }
-                  parser={(v) =>
-                    v ? Number(v.toString().replace(/,/g, "")) : 0
+                  parser={(value: string | number | null | undefined) =>
+                    value == null || value === ""
+                      ? 0
+                      : Number(
+                          String(value).replace(/,/g, "")
+                        )
                   }
                 />
               </Form.Item>
@@ -542,7 +547,7 @@ export default function FinancePage() {
           onOk={() => editForm.submit()}
           okText="저장"
           cancelText="취소"
-          destroyOnHidden
+          destroyOnClose
         >
           <Form form={editForm} layout="vertical" onFinish={handleEditSubmit}>
             <Form.Item
@@ -569,13 +574,17 @@ export default function FinancePage() {
               <InputNumber
                 min={0}
                 style={{ width: "100%" }}
-                formatter={(v) =>
-                  v
-                    ? v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                    : ""
+                formatter={(value: string | number | null | undefined) =>
+                  value == null || value === ""
+                    ? ""
+                    : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
-                parser={(v) =>
-                  v ? Number(v.toString().replace(/,/g, "")) : 0
+                parser={(value: string | number | null | undefined) =>
+                  value == null || value === ""
+                    ? 0
+                    : Number(
+                        String(value).replace(/,/g, "")
+                      )
                 }
               />
             </Form.Item>
@@ -588,13 +597,17 @@ export default function FinancePage() {
               <InputNumber
                 min={0}
                 style={{ width: "100%" }}
-                formatter={(v) =>
-                  v
-                    ? v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-                    : ""
+                formatter={(value: string | number | null | undefined) =>
+                  value == null || value === ""
+                    ? ""
+                    : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
-                parser={(v) =>
-                  v ? Number(v.toString().replace(/,/g, "")) : 0
+                parser={(value: string | number | null | undefined) =>
+                  value == null || value === ""
+                    ? 0
+                    : Number(
+                        String(value).replace(/,/g, "")
+                      )
                 }
               />
             </Form.Item>
