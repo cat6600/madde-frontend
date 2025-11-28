@@ -85,10 +85,9 @@ export default function IRPage() {
       setLoading(true);
       const params =
         category && category !== "전체" ? { category } : undefined;
-      const res = await axios.get<IRFile[]>(
-        `${API_BASE_URL}/ir`,
-        { params }
-      );
+      const res = await axios.get<IRFile[]>(`${API_BASE_URL}/ir`, {
+        params,
+      });
       setFiles(res.data);
     } catch (err) {
       console.error(err);
@@ -100,6 +99,7 @@ export default function IRPage() {
 
   useEffect(() => {
     fetchFiles("전체");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCategoryChange = (key: string) => {
@@ -168,9 +168,13 @@ export default function IRPage() {
     <AppLayout>
       <div style={{ padding: 24 }}>
         <Space
-          style={{ width: "100%", marginBottom: 24 }}
+          style={{
+            width: "100%",
+            marginBottom: 24,
+            display: "flex",
+            justifyContent: "space-between",
+          }}
           align="center"
-          justify="space-between"
         >
           <div>
             <Title level={3} style={{ marginBottom: 0 }}>
@@ -202,7 +206,7 @@ export default function IRPage() {
         </Tabs>
 
         {/* 파일 카드 리스트 */}
-        <Row gutter={[16, 16]} loading={loading as any}>
+        <Row gutter={[16, 16]}>
           {files.map((file) => (
             <Col xs={24} sm={12} md={8} lg={6} key={file.id}>
               <Card
@@ -217,7 +221,11 @@ export default function IRPage() {
                 >
                   <Space
                     align="start"
-                    style={{ width: "100%", justifyContent: "space-between" }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
                   >
                     <Space>
                       <FolderOpenOutlined />
@@ -248,9 +256,13 @@ export default function IRPage() {
                   </div>
 
                   <Space
-                    style={{ marginTop: 12, width: "100%" }}
+                    style={{
+                      marginTop: 12,
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
                     align="center"
-                    justify="space-between"
                   >
                     <Button
                       type="default"
@@ -291,9 +303,13 @@ export default function IRPage() {
           onOk={() => uploadForm.submit()}
           okText="업로드"
           cancelText="취소"
-          destroyOnHidden
+          destroyOnClose
         >
-          <Form form={uploadForm} layout="vertical" onFinish={handleUploadSubmit}>
+          <Form
+            form={uploadForm}
+            layout="vertical"
+            onFinish={handleUploadSubmit}
+          >
             <Form.Item label="파일" required>
               <Upload
                 beforeUpload={() => false}
