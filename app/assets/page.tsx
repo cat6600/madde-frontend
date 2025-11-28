@@ -71,9 +71,7 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const res = await axios.get<AssetsResponse>(
-        `${API_BASE_URL}/assets`
-      );
+      const res = await axios.get<AssetsResponse>(`${API_BASE_URL}/assets`);
       setProjects(res.data.projects || []);
       setPersonnelRows(res.data.personnel_rows || []);
       setEquipmentRows(res.data.equipment_rows || []);
@@ -234,6 +232,7 @@ export default function AssetsPage() {
     }
   };
 
+  // 인건비 테이블 컬럼
   const personnelColumns: any[] = [
     {
       title: "참여자",
@@ -268,9 +267,15 @@ export default function AssetsPage() {
             min={0}
             max={200}
             value={value}
-            formatter={(val) => `${val ?? 0}%`}
+            formatter={(
+              val: number | string | null | undefined
+            ): string =>
+              val !== undefined && val !== null
+                ? String(val).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                : ""
+            }
             parser={(val) =>
-              val ? Number(String(val).replace("%", "")) : 0
+              val ? Number(String(val).replace(/,/g, "")) : 0
             }
             onChange={(val) =>
               handlePersonnelShareChange(record.person_id, proj, val)
@@ -321,6 +326,7 @@ export default function AssetsPage() {
     }
   );
 
+  // 장비 테이블 컬럼
   const equipmentColumns: any[] = [
     {
       title: "장치명",
@@ -357,9 +363,15 @@ export default function AssetsPage() {
             min={0}
             max={200}
             value={value}
-            formatter={(val) => `${val ?? 0}%`}
+            formatter={(
+              val: number | string | null | undefined
+            ): string =>
+              val !== undefined && val !== null
+                ? String(val).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                : ""
+            }
             parser={(val) =>
-              val ? Number(String(val).replace("%", "")) : 0
+              val ? Number(String(val).replace(/,/g, "")) : 0
             }
             onChange={(val) =>
               handleEquipmentShareChange(record.equipment_id, proj, val)
@@ -459,15 +471,15 @@ export default function AssetsPage() {
                 <InputNumber
                   placeholder="연봉(천원)"
                   min={0}
-                  formatter={(v) =>
-                    v
-                      ? v
-                          .toString()
-                          .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                  formatter={(
+                    v: number | string | null | undefined
+                  ): string =>
+                    v !== undefined && v !== null
+                      ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                       : ""
                   }
                   parser={(v) =>
-                    v ? Number(v.toString().replace(/,/g, "")) : 0
+                    v ? Number(String(v).replace(/,/g, "")) : 0
                   }
                 />
               </Form.Item>
@@ -541,15 +553,15 @@ export default function AssetsPage() {
                 <InputNumber
                   placeholder="취득액(천원)"
                   min={0}
-                  formatter={(v) =>
-                    v
-                      ? v
-                          .toString()
-                          .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                  formatter={(
+                    v: number | string | null | undefined
+                  ): string =>
+                    v !== undefined && v !== null
+                      ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                       : ""
                   }
                   parser={(v) =>
-                    v ? Number(v.toString().replace(/,/g, "")) : 0
+                    v ? Number(String(v).replace(/,/g, "")) : 0
                   }
                 />
               </Form.Item>
