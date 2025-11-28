@@ -278,7 +278,11 @@ export default function AssetsPage() {
               val ? Number(String(val).replace(/,/g, "")) : 0
             }
             onChange={(val) =>
-              handlePersonnelShareChange(record.person_id, proj, val)
+              handlePersonnelShareChange(
+                record.person_id,
+                proj,
+                val !== null && val !== undefined ? Number(val) : null
+              )
             }
           />
         );
@@ -374,7 +378,11 @@ export default function AssetsPage() {
               val ? Number(String(val).replace(/,/g, "")) : 0
             }
             onChange={(val) =>
-              handleEquipmentShareChange(record.equipment_id, proj, val)
+              handleEquipmentShareChange(
+                record.equipment_id,
+                proj,
+                val !== null && val !== undefined ? Number(val) : null
+              )
             }
           />
         );
