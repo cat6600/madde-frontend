@@ -32,7 +32,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [role, setRole] = useState<"admin" | "viewer" | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // 1) 로그인 여부 체크
+  // 로그인 여부 체크
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -52,7 +52,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     setCheckingAuth(false);
   }, [router]);
 
-  // 2) 뷰어의 페이지 직접 접근 막기 (URL 수동 입력 등)
+  // 뷰어의 직접 주소 입력 접근 막기
   useEffect(() => {
     if (!role) return;
     if (role === "viewer" && ADMIN_ONLY_PATHS.includes(pathname)) {
@@ -61,7 +61,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [role, pathname, router]);
 
-  // 권한 확인 중일 때 잠깐 로딩 화면
+  // 권한 확인 중이면 간단한 로딩
   if (checkingAuth) {
     return (
       <Layout
@@ -77,7 +77,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
-  // 로그인 안 된 상태에서는 아무것도 렌더링하지 않음 (이미 /login으로 보냄)
+  // 로그인 안 됐으면 아무것도 렌더X (이미 /login으로 보냄)
   if (!role) {
     return null;
   }
@@ -126,7 +126,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     },
   ];
 
-  // 👉 뷰어도 전체 메뉴는 보이되, adminOnly 메뉴는 disabled 처리(회색)
+  // 뷰어도 메뉴는 보이되, adminOnly 메뉴는 회색(disabled)
   const antMenuItems = menuItems.map((item) => ({
     key: item.key,
     icon: item.icon,
@@ -135,10 +135,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }));
 
   const handleMenuClick = (key: string) => {
-    // disabled일 때는 onClick 자체가 안 들어오긴 하지만, 혹시 몰라서 한 번 더 방어
     const target = menuItems.find((m) => m.key === key);
     if (role === "viewer" && target?.adminOnly) {
-      message.warning("뷰어 권한으로는 해당 메뉴를 사용할 수 없습니다.");
+      message.warning("뷰어 권한으로는 해당 메뉴에 접근할 수 없습니다.");
       return;
     }
     router.push(key);
@@ -157,17 +156,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        width={230}
-        style={{ position: "relative" }}
+        width={240}
+        style={{ display: "flex", flexDirection: "column" }}
       >
-        {/* 로고 / 타이틀 */}
+        {/* 상단 타이틀 */}
         <div
           style={{
-            height: 56,
-            margin: 16,
+            height: 64,
+            padding: collapsed ? "16px 8px" : "16px 16px",
             display: "flex",
             flexDirection: "column",
-            alignItems: collapsed ? "center" : "flex-start",
             justifyContent: "center",
             color: "white",
           }}
@@ -182,24 +180,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
         </div>
 
-        {/* 메인 메뉴 */}
+        {/* 메뉴 영역 */}
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={antMenuItems}
           onClick={({ key }) => handleMenuClick(key as string)}
-          style={{ paddingBottom: 48 }} // 아래 로그아웃 공간 확보
+          style={{ flex: 1 }}
         />
 
-        {/* 사이드바 하단 로그아웃 */}
+        {/* 하단 로그아웃 버튼 */}
         <div
           style={{
-            position: "absolute",
-            bottom: 8,
-            left: 0,
-            width: "100%",
-            padding: collapsed ? "0 8px" : "0 16px",
+            padding: collapsed ? "8px" : "12px 16px",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           <div
@@ -211,7 +206,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
               gap: 8,
               color: "#ffffff",
               padding: collapsed ? "8px 10px" : "8px 12px",
-              margin: collapsed ? "0 4px" : "0",
               borderRadius: 8,
               transition: "background 0.2s",
             }}
@@ -241,11 +235,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
           }}
         >
           <Text strong>회사 통합 관리 시스템</Text>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Tag color={role === "admin" ? "purple" : "blue"}>
-              {role === "admin" ? "관리자" : "뷰어"}
-            </Tag>
-          </div>
+          <Tag color={role === "admin" ? "purple" : "blue"}>
+            {role === "admin" ? "관리자" : "뷰어"}
+          </Tag>
         </Header>
 
         <Content style={{ padding: 24, background: "#f5f5f5" }}>
@@ -261,7 +253,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           >
             {children}
 
-            {/* 뷰어일 때 아래에 노란 안내 바 */}
+            {/* 뷰어 안내 바 */}
             {role === "viewer" && (
               <div
                 style={{
