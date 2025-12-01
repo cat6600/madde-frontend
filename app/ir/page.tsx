@@ -69,13 +69,13 @@ export default function IRPage() {
       return;
     }
 
-    try:
+    try {
       setUploading(true);
 
       const formData = new FormData();
       // ✅ 파일 여러 개 모두 append
       Array.from(selectedFiles).forEach((file) => {
-        formData.append("file", file); // 백엔드는 file: List[UploadFile]
+        formData.append("file", file); // 백엔드: file: List[UploadFile]
       });
 
       formData.append("category", values.category || "IR");
@@ -88,7 +88,6 @@ export default function IRPage() {
       message.success("IR 자료 업로드 완료 ✅");
       form.resetFields();
       setSelectedFiles(null);
-      // 파일 input 비우기
       const el = document.getElementById(
         "ir-file-input"
       ) as HTMLInputElement | null;
@@ -114,8 +113,6 @@ export default function IRPage() {
   };
 
   const buildFileUrl = (storedName: string, folder?: string | null) => {
-    // 백엔드에서 uploads/ir(/folder)/stored_name 구조로 저장하므로,
-    // 여기서는 단순히 /uploads/ir(/folder)/stored_name 으로 링크 생성
     if (folder) {
       return `${API_BASE_URL}/uploads/ir/${folder}/${storedName}`;
     }
@@ -181,11 +178,7 @@ export default function IRPage() {
           okButtonProps={{ danger: true }}
           onConfirm={() => handleDelete(record.id, record.original_name)}
         >
-          <Button
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-          >
+          <Button danger size="small" icon={<DeleteOutlined />}>
             삭제
           </Button>
         </Popconfirm>
@@ -198,7 +191,8 @@ export default function IRPage() {
       <div style={{ padding: 24 }}>
         <Title level={3}>📂 IR / 마케팅 자료</Title>
         <Text type="secondary">
-          피치덱, 브로셔, 전시회 자료, 사진/영상 등 마케팅 자료를 업로드하고 관리합니다.
+          피치덱, 브로셔, 전시회 자료, 사진/영상 등 마케팅 자료를 업로드하고
+          관리합니다.
         </Text>
 
         {/* 업로드 폼 */}
