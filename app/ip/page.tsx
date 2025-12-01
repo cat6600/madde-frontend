@@ -11,11 +11,13 @@ import {
   Space,
   message,
   Popconfirm,
+  Modal,
 } from "antd";
 import {
   ReloadOutlined,
   DeleteOutlined,
   PlusOutlined,
+  PaperClipOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import AppLayout from "../components/AppLayout";
@@ -33,10 +35,26 @@ interface IPRecord {
   status: string;
 }
 
+interface IPFile {
+  id: number;
+  ip_id: number;
+  original_name: string;
+  stored_name: string;
+  upload_date: string;
+  size: number;
+}
+
 export default function IPPage() {
   const [data, setData] = useState<IPRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+
+  // 🔹 파일 관리 모달 상태
+  const [fileModalOpen, setFileModalOpen] = useState(false);
+  const [currentIP, setCurrentIP] = useState<IPRecord | null>(null);
+  const [ipFiles, setIpFiles] = useState<IPFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
   const fetchData = async () => {
     try {
@@ -95,6 +113,84 @@ export default function IPPage() {
     }
   };
 
+  // ================================
+  // 파일 관리 모달 관련 로직
+  // ================================
+  const openFileModal = async (record: IPRecord) => {
+    setCurrentIP(record);
+    setFileModalOpen(true);
+    setSelectedFiles(null);
+    await fetchIpFiles(record.id);
+  };
+
+  const closeFileModal = () => {
+    setFileModalOpen(false);
+    setCurrentIP(null);
+    setIpFiles([]);
+    setSelectedFiles(null);
+  };
+
+  const fetchIpFiles = async (ipId: number) => {
+    try {
+      const res = await axios.get<IPFile[]>(`${API_BASE_URL}/ip/${ipId}/files`);
+      setIpFiles(res.data);
+    } catch (error) {
+      console.error(error);
+      message.error("IP 파일 목록 불러오기 실패 ❌");
+    }
+  };
+
+  const handleFileInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setSelectedFiles(e.target.files);
+  };
+
+  const handleUploadFiles = async () => {
+    if (!currentIP) return;
+    if (!selectedFiles || selectedFiles.length === 0) {
+      message.warning("업로드할 파일을 선택해 주세요.");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      Array.from(selectedFiles).forEach((file) => {
+        formData.append("files", file); // ✅ 여러 파일
+      });
+
+      await axios.post(
+        `${API_BASE_URL}/ip/${currentIP.id}/files`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      message.success("파일 업로드 완료 ✅");
+      setSelectedFiles(null);
+      await fetchIpFiles(currentIP.id);
+    } catch (error) {
+      console.error(error);
+      message.error("파일 업로드 실패 ❌");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: number) => {
+    if (!currentIP) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/ip/files/${fileId}`);
+      message.success("파일 삭제 완료 ✅");
+      await fetchIpFiles(currentIP.id);
+    } catch (error) {
+      console.error(error);
+      message.error("파일 삭제 실패 ❌");
+    }
+  };
+
   const columns = [
     {
       title: "ID",
@@ -140,6 +236,20 @@ export default function IPPage() {
       render: (v: string | null) => v || "-",
     },
     {
+      title: "파일",
+      key: "files",
+      width: 120,
+      render: (_: any, record: IPRecord) => (
+        <Button
+          size="small"
+          icon={<PaperClipOutlined />}
+          onClick={() => openFileModal(record)}
+        >
+          파일 관리
+        </Button>
+      ),
+    },
+    {
       title: "관리",
       key: "actions",
       width: 90,
@@ -160,6 +270,9 @@ export default function IPPage() {
     },
   ];
 
+  const buildFileUrl = (storedName: string) =>
+    `${API_BASE_URL}/uploads/ip/${storedName}`;
+
   return (
     <AppLayout>
       <div style={{ padding: 24 }}>
@@ -168,6 +281,7 @@ export default function IPPage() {
           특허·디자인·상표 등 회사 IP 현황을 관리합니다.
         </Text>
 
+        {/* 등록 폼 */}
         <div
           style={{
             marginTop: 24,
@@ -226,6 +340,7 @@ export default function IPPage() {
           </Form>
         </div>
 
+        {/* 새로고침 */}
         <Space style={{ marginBottom: 8 }}>
           <Button
             icon={<ReloadOutlined />}
@@ -236,6 +351,7 @@ export default function IPPage() {
           </Button>
         </Space>
 
+        {/* 목록 테이블 */}
         <Table
           style={{ marginTop: 8 }}
           columns={columns}
@@ -245,6 +361,111 @@ export default function IPPage() {
           pagination={{ pageSize: 10 }}
           size="middle"
         />
+
+        {/* 파일 관리 모달 */}
+        <Modal
+          title={
+            currentIP
+              ? `파일 관리 - [${currentIP.id}] ${currentIP.title}`
+              : "파일 관리"
+          }
+          open={fileModalOpen}
+          onCancel={closeFileModal}
+          footer={null}
+          destroyOnClose
+        >
+          {/* 파일 업로드 영역 */}
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              borderRadius: 8,
+              border: "1px dashed #d9d9d9",
+            }}
+          >
+            <Text strong>파일 업로드</Text>
+            <div style={{ marginTop: 8 }}>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileInputChange}
+              />
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <Button
+                type="primary"
+                onClick={handleUploadFiles}
+                loading={uploading}
+              >
+                업로드
+              </Button>
+            </div>
+          </div>
+
+          {/* 기존 파일 리스트 */}
+          <Text strong>등록된 파일</Text>
+          <Table
+            style={{ marginTop: 8 }}
+            size="small"
+            rowKey="id"
+            pagination={false}
+            dataSource={ipFiles}
+            columns={[
+              {
+                title: "파일명",
+                dataIndex: "original_name",
+                key: "original_name",
+              },
+              {
+                title: "업로드일",
+                dataIndex: "upload_date",
+                key: "upload_date",
+                width: 110,
+              },
+              {
+                title: "크기",
+                dataIndex: "size",
+                key: "size",
+                width: 100,
+                render: (v: number) =>
+                  v ? `${(v / 1024).toFixed(1)} KB` : "-",
+              },
+              {
+                title: "다운로드",
+                key: "download",
+                width: 100,
+                render: (_: any, record: IPFile) => (
+                  <a
+                    href={buildFileUrl(record.stored_name)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    보기
+                  </a>
+                ),
+              },
+              {
+                title: "관리",
+                key: "actions",
+                width: 80,
+                render: (_: any, record: IPFile) => (
+                  <Popconfirm
+                    title="파일 삭제"
+                    description={`"${record.original_name}" 파일을 삭제하시겠습니까?`}
+                    okText="삭제"
+                    cancelText="취소"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() => handleDeleteFile(record.id)}
+                  >
+                    <Button size="small" danger>
+                      삭제
+                    </Button>
+                  </Popconfirm>
+                ),
+              },
+            ]}
+          />
+        </Modal>
       </div>
     </AppLayout>
   );
