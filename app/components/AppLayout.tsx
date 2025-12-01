@@ -19,13 +19,8 @@ import { useEffect, useState } from "react";
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-// 🔒 뷰어가 접근하면 안 되는 페이지들
-const ADMIN_ONLY_PATHS = [
-  "/finance",
-  "/assets",
-  "/projects",
-  "/process-data",
-];
+// 🔒 뷰어가 접근하면 안 되는 페이지들 (요청대로 유지)
+const ADMIN_ONLY_PATHS = ["/finance", "/assets", "/projects"];
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -96,75 +91,128 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const selectedKey =
     pathname === "/" ? "/dashboard" : pathname.split("?")[0];
 
-  const menuItems = [
+  // 원본 메뉴 구조 (group + children)
+  const menuItems: any[] = [
     {
       key: "/dashboard",
       icon: <DashboardOutlined />,
       label: "대시보드",
     },
     {
-      key: "/production",
-      icon: <BarChartOutlined />,
-      label: "제작 및 매출 현황",
+      type: "group",
+      label: "영업·제작",
+      children: [
+        {
+          key: "/production",
+          icon: <BarChartOutlined />,
+          label: "제작 및 매출 현황",
+        },
+        {
+          key: "/process-data",
+          icon: <SettingOutlined />,
+          label: "공정 데이터",
+          // ✅ 이제 뷰어도 접근 가능 (adminOnly 삭제)
+        },
+      ],
     },
     {
-      key: "/research",
-      icon: <ExperimentOutlined />,
-      label: "연구 데이터",
+      type: "group",
+      label: "R&D·과제",
+      children: [
+        {
+          key: "/research",
+          icon: <ExperimentOutlined />,
+          label: "연구 데이터",
+        },
+        {
+          key: "/projects",
+          icon: <ProjectOutlined />,
+          label: "과제 현황",
+          adminOnly: true,
+        },
+        {
+          key: "/ip",
+          icon: <BulbOutlined />,
+          label: "인증/IP 현황",
+        },
+      ],
     },
     {
-      key: "/ip",
-      icon: <BulbOutlined />,
-      label: "인증/IP 현황",
+      type: "group",
+      label: "재무·자산",
+      children: [
+        {
+          key: "/finance",
+          icon: <FundOutlined />,
+          label: "재무 현황",
+          adminOnly: true,
+        },
+        {
+          key: "/assets",
+          icon: <DatabaseOutlined />,
+          label: "현물 현황",
+          adminOnly: true,
+        },
+      ],
     },
     {
-      key: "/ir",
-      icon: <FileImageOutlined />,
-      label: "IR/마케팅 자료",
-    },
-    {
-      key: "/process-data",
-      icon: <SettingOutlined />,
-      label: "공정 데이터",
-      adminOnly: true,
-    },
-    {
-      key: "/finance",
-      icon: <FundOutlined />,
-      label: "재무 현황",
-      adminOnly: true,
-    },
-    {
-      key: "/assets",
-      icon: <DatabaseOutlined />,
-      label: "현물 현황",
-      adminOnly: true,
-    },
-    {
-      key: "/projects",
-      icon: <ProjectOutlined />,
-      label: "과제 현황",
-      adminOnly: true,
+      type: "group",
+      label: "자료·IR",
+      children: [
+        {
+          key: "/ir",
+          icon: <FileImageOutlined />,
+          label: "IR/마케팅 자료",
+        },
+      ],
     },
   ];
 
-  // 뷰어는 adminOnly 메뉴 비활성화(disabled)
-  const antMenuItems = menuItems.map((item) => ({
-    key: item.key,
-    icon: item.icon,
-    label: item.label,
-    disabled: role === "viewer" && item.adminOnly === true,
-  }));
+  // 뷰어는 adminOnly 메뉴 비활성화(disabled) - group 포함 재귀 변환
+  const mapMenuItemsForAntd = (items: any[]): any[] =>
+    items.map((item) => {
+      if (item.type === "group" && item.children) {
+        return {
+          ...item,
+          children: mapMenuItemsForAntd(item.children),
+        };
+      }
+      return {
+        key: item.key,
+        icon: item.icon,
+        label: item.label,
+        disabled: role === "viewer" && item.adminOnly === true,
+      };
+    });
+
+  const antMenuItems = mapMenuItemsForAntd(menuItems);
 
   // ================================
   // 메뉴 클릭
   // ================================
   const handleMenuClick = (key: string) => {
-    const target = menuItems.find((m) => m.key === key);
+    // group은 key 없음, children만 있음 → 여기까지 안 들어옴
+    // children item만 처리
+    // adminOnly 체크
+    const findTarget = (items: any[]): any | undefined => {
+      for (const it of items) {
+        if (it.type === "group" && it.children) {
+          const found = findTarget(it.children);
+          if (found) return found;
+        } else if (it.key === key) {
+          return it;
+        }
+      }
+      return undefined;
+    };
+
+    const target = findTarget(menuItems);
+
     if (role === "viewer" && target?.adminOnly) {
       message.warning("뷰어 권한으로는 접근할 수 없습니다.");
       return;
     }
+
     router.push(key);
   };
 
@@ -217,7 +265,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           mode="inline"
           selectedKeys={[selectedKey]}
           items={antMenuItems}
-          onClick={({ key }) => handleMenuClick(key)}
+          onClick={({ key }) => handleMenuClick(key as string)}
           style={{ flex: 1 }}
         />
 
