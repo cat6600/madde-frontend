@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, Table, Select, Typography, Row, Col, message } from "antd";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL } from "../lib/api";
 
 const { Title } = Typography;
 const { Option } = Select;
