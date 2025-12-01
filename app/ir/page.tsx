@@ -35,6 +35,16 @@ interface IRRecord {
   size: number;
 }
 
+const CATEGORY_FILTER_OPTIONS = [
+  "전체",
+  "IR",
+  "브로셔",
+  "전시회",
+  "사진",
+  "영상",
+  "기타",
+];
+
 export default function IRPage() {
   const [data, setData] = useState<IRRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,10 +52,19 @@ export default function IRPage() {
   const [form] = Form.useForm();
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
-  const fetchData = async () => {
+  // 화면 상단 필터 상태
+  const [filterCategory, setFilterCategory] = useState<string>("전체");
+
+  const fetchData = async (categoryFilter: string = "전체") => {
     try {
       setLoading(true);
-      const res = await axios.get<IRRecord[]>(`${API_BASE_URL}/ir`);
+      const params: any = {};
+      if (categoryFilter && categoryFilter !== "전체") {
+        params.category = categoryFilter;
+      }
+      const res = await axios.get<IRRecord[]>(`${API_BASE_URL}/ir`, {
+        params,
+      });
       setData(res.data);
     } catch (error) {
       console.error(error);
@@ -56,8 +75,8 @@ export default function IRPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(filterCategory);
+  }, [filterCategory]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(e.target.files);
@@ -73,9 +92,9 @@ export default function IRPage() {
       setUploading(true);
 
       const formData = new FormData();
-      // ✅ 파일 여러 개 모두 append
+      // ✅ 여러 파일 모두 "file" 키로 append → 백엔드에서 List[UploadFile]로 받음
       Array.from(selectedFiles).forEach((file) => {
-        formData.append("file", file); // 백엔드: file: List[UploadFile]
+        formData.append("file", file);
       });
 
       formData.append("category", values.category || "IR");
@@ -88,11 +107,14 @@ export default function IRPage() {
       message.success("IR 자료 업로드 완료 ✅");
       form.resetFields();
       setSelectedFiles(null);
+
       const el = document.getElementById(
         "ir-file-input"
       ) as HTMLInputElement | null;
       if (el) el.value = "";
-      fetchData();
+
+      // 업로드 후, 현재 필터 기준으로 다시 조회
+      fetchData(filterCategory);
     } catch (error) {
       console.error(error);
       message.error("IR 자료 업로드 실패 ❌");
@@ -105,7 +127,7 @@ export default function IRPage() {
     try {
       await axios.delete(`${API_BASE_URL}/ir/${id}`);
       message.success(`"${original}" 삭제 완료 ✅`);
-      fetchData();
+      fetchData(filterCategory);
     } catch (error) {
       console.error(error);
       message.error("IR 자료 삭제 실패 ❌");
@@ -195,10 +217,46 @@ export default function IRPage() {
           관리합니다.
         </Text>
 
-        {/* 업로드 폼 */}
+        {/* 🔹 상단 필터 (전체 / IR / 사진 / 영상 ...) */}
         <div
           style={{
             marginTop: 24,
+            marginBottom: 8,
+            padding: 12,
+            borderRadius: 12,
+            border: "1px solid #f0f0f0",
+            background: "#fafafa",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <Text strong>보기 필터</Text>
+          <Select
+            value={filterCategory}
+            onChange={(v) => setFilterCategory(v)}
+            style={{ width: 160 }}
+          >
+            {CATEGORY_FILTER_OPTIONS.map((c) => (
+              <Option key={c} value={c}>
+                {c}
+              </Option>
+            ))}
+          </Select>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => fetchData(filterCategory)}
+            loading={loading}
+          >
+            새로고침
+          </Button>
+        </div>
+
+        {/* 🔹 업로드 폼 (다중 업로드) */}
+        <div
+          style={{
+            marginTop: 8,
             marginBottom: 16,
             padding: 16,
             borderRadius: 12,
@@ -269,18 +327,7 @@ export default function IRPage() {
           </Form>
         </div>
 
-        {/* 새로고침 */}
-        <Space style={{ marginBottom: 8 }}>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchData}
-            loading={loading}
-          >
-            새로고침
-          </Button>
-        </Space>
-
-        {/* 목록 테이블 */}
+        {/* 🔹 목록 테이블 */}
         <Table
           style={{ marginTop: 8 }}
           columns={columns}
