@@ -3,36 +3,29 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  Card,
-  Col,
-  Modal,
-  Row,
-  Space,
-  Tabs,
-  Tag,
-  Typography,
-  Upload,
   Form,
   Input,
   Select,
+  Table,
+  Typography,
+  Space,
   message,
+  Popconfirm,
 } from "antd";
 import {
-  UploadOutlined,
+  ReloadOutlined,
   DeleteOutlined,
-  DownloadOutlined,
-  FolderOpenOutlined,
+  PlusOutlined,
+  PaperClipOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import AppLayout from "../components/AppLayout";
 import { API_BASE_URL } from "../lib/api";
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
+const { Option } = Select;
 
-type IRCategory = "전체" | "IR" | "사진" | "영상" | "브로셔" | "전시회";
-
-interface IRFile {
+interface IRRecord {
   id: number;
   original_name: string;
   stored_name: string;
@@ -42,55 +35,20 @@ interface IRFile {
   size: number;
 }
 
-const CATEGORY_OPTIONS: IRCategory[] = [
-  "전체",
-  "IR",
-  "사진",
-  "영상",
-  "브로셔",
-  "전시회",
-];
-
-const CATEGORY_COLOR: Record<string, string> = {
-  IR: "purple",
-  사진: "green",
-  영상: "geekblue",
-  브로셔: "gold",
-  전시회: "magenta",
-};
-
-function formatFileSize(bytes: number) {
-  if (!bytes || bytes <= 0) return "-";
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let idx = 0;
-  while (size >= 1024 && idx < units.length - 1) {
-    size /= 1024;
-    idx++;
-  }
-  return `${size.toFixed(1)} ${units[idx]}`;
-}
-
 export default function IRPage() {
-  const [files, setFiles] = useState<IRFile[]>([]);
+  const [data, setData] = useState<IRRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<IRCategory>("전체");
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadForm] = Form.useForm();
-  const [uploadFile, setUploadFile] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [form] = Form.useForm();
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
-  // 🔹 파일 리스트 불러오기
-  const fetchFiles = async (category: IRCategory = activeCategory) => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const params =
-        category && category !== "전체" ? { category } : undefined;
-      const res = await axios.get<IRFile[]>(`${API_BASE_URL}/ir`, {
-        params,
-      });
-      setFiles(res.data);
-    } catch (err) {
-      console.error(err);
+      const res = await axios.get<IRRecord[]>(`${API_BASE_URL}/ir`);
+      setData(res.data);
+    } catch (error) {
+      console.error(error);
       message.error("IR/마케팅 자료 불러오기 실패 ❌");
     } finally {
       setLoading(false);
@@ -98,254 +56,246 @@ export default function IRPage() {
   };
 
   useEffect(() => {
-    fetchFiles("전체");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchData();
   }, []);
 
-  const handleCategoryChange = (key: string) => {
-    const cat = key as IRCategory;
-    setActiveCategory(cat);
-    fetchFiles(cat);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFiles(e.target.files);
   };
 
-  const handleDownload = (file: IRFile) => {
-    const base = `${API_BASE_URL}/uploads/ir`;
-    const path = file.folder
-      ? `${base}/${file.folder}/${file.stored_name}`
-      : `${base}/${file.stored_name}`;
-    window.open(path, "_blank");
-  };
-
-  const handleDelete = async (file: IRFile) => {
-    Modal.confirm({
-      title: "파일 삭제",
-      content: `"${file.original_name}" 파일을 삭제하시겠습니까?`,
-      okText: "삭제",
-      okType: "danger",
-      cancelText: "취소",
-      async onOk() {
-        try {
-          await axios.delete(`${API_BASE_URL}/ir/${file.id}`);
-          message.success("삭제 완료 ✅");
-          fetchFiles();
-        } catch (err) {
-          console.error(err);
-          message.error("삭제 실패 ❌");
-        }
-      },
-    });
-  };
-
-  const handleUploadSubmit = async (values: any) => {
-    if (!uploadFile) {
-      message.warning("업로드할 파일을 선택해주세요.");
+  const onFinish = async (values: any) => {
+    if (!selectedFiles || selectedFiles.length === 0) {
+      message.warning("업로드할 파일을 선택해 주세요.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", uploadFile as File);
-    formData.append("category", values.category || "IR");
-    if (values.folder) {
-      formData.append("folder", values.folder);
-    }
+    try:
+      setUploading(true);
 
-    try {
+      const formData = new FormData();
+      // ✅ 파일 여러 개 모두 append
+      Array.from(selectedFiles).forEach((file) => {
+        formData.append("file", file); // 백엔드는 file: List[UploadFile]
+      });
+
+      formData.append("category", values.category || "IR");
+      formData.append("folder", values.folder || "");
+
       await axios.post(`${API_BASE_URL}/ir`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+
       message.success("IR 자료 업로드 완료 ✅");
-      setUploadModalOpen(false);
-      setUploadFile(null);
-      uploadForm.resetFields();
-      fetchFiles();
-    } catch (err) {
-      console.error(err);
-      message.error("업로드 실패 ❌");
+      form.resetFields();
+      setSelectedFiles(null);
+      // 파일 input 비우기
+      const el = document.getElementById(
+        "ir-file-input"
+      ) as HTMLInputElement | null;
+      if (el) el.value = "";
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error("IR 자료 업로드 실패 ❌");
+    } finally {
+      setUploading(false);
     }
   };
+
+  const handleDelete = async (id: number, original: string) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/ir/${id}`);
+      message.success(`"${original}" 삭제 완료 ✅`);
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      message.error("IR 자료 삭제 실패 ❌");
+    }
+  };
+
+  const buildFileUrl = (storedName: string, folder?: string | null) => {
+    // 백엔드에서 uploads/ir(/folder)/stored_name 구조로 저장하므로,
+    // 여기서는 단순히 /uploads/ir(/folder)/stored_name 으로 링크 생성
+    if (folder) {
+      return `${API_BASE_URL}/uploads/ir/${folder}/${storedName}`;
+    }
+    return `${API_BASE_URL}/uploads/ir/${storedName}`;
+  };
+
+  const columns = [
+    {
+      title: "파일명",
+      dataIndex: "original_name",
+      key: "original_name",
+    },
+    {
+      title: "카테고리",
+      dataIndex: "category",
+      key: "category",
+      width: 120,
+    },
+    {
+      title: "폴더",
+      dataIndex: "folder",
+      key: "folder",
+      width: 140,
+      render: (v: string | null) => v || "-",
+    },
+    {
+      title: "업로드일",
+      dataIndex: "upload_date",
+      key: "upload_date",
+      width: 110,
+    },
+    {
+      title: "크기",
+      dataIndex: "size",
+      key: "size",
+      width: 100,
+      render: (v: number) => (v ? `${(v / 1024).toFixed(1)} KB` : "-"),
+    },
+    {
+      title: "보기",
+      key: "view",
+      width: 100,
+      render: (_: any, record: IRRecord) => (
+        <a
+          href={buildFileUrl(record.stored_name, record.folder)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          보기
+        </a>
+      ),
+    },
+    {
+      title: "관리",
+      key: "actions",
+      width: 90,
+      render: (_: any, record: IRRecord) => (
+        <Popconfirm
+          title="IR 자료 삭제"
+          description={`"${record.original_name}" 파일을 삭제하시겠습니까?`}
+          okText="삭제"
+          cancelText="취소"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => handleDelete(record.id, record.original_name)}
+        >
+          <Button
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+          >
+            삭제
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
 
   return (
     <AppLayout>
       <div style={{ padding: 24 }}>
-        <Space
+        <Title level={3}>📂 IR / 마케팅 자료</Title>
+        <Text type="secondary">
+          피치덱, 브로셔, 전시회 자료, 사진/영상 등 마케팅 자료를 업로드하고 관리합니다.
+        </Text>
+
+        {/* 업로드 폼 */}
+        <div
           style={{
-            width: "100%",
-            marginBottom: 24,
-            display: "flex",
-            justifyContent: "space-between",
+            marginTop: 24,
+            marginBottom: 16,
+            padding: 16,
+            borderRadius: 12,
+            border: "1px solid #f0f0f0",
+            background: "#fafafa",
           }}
-          align="center"
-        >
-          <div>
-            <Title level={3} style={{ marginBottom: 0 }}>
-              IR/마케팅 자료
-            </Title>
-            <Text type="secondary">
-              회사 홍보 및 IR 자료를 관리합니다.
-            </Text>
-          </div>
-
-          <Button
-            type="primary"
-            icon={<UploadOutlined />}
-            onClick={() => setUploadModalOpen(true)}
-          >
-            파일 업로드
-          </Button>
-        </Space>
-
-        {/* 카테고리 탭 */}
-        <Tabs
-          activeKey={activeCategory}
-          onChange={handleCategoryChange}
-          style={{ marginBottom: 16 }}
-        >
-          {CATEGORY_OPTIONS.map((cat) => (
-            <TabPane tab={cat} key={cat} />
-          ))}
-        </Tabs>
-
-        {/* 파일 카드 리스트 */}
-        <Row gutter={[16, 16]}>
-          {files.map((file) => (
-            <Col xs={24} sm={12} md={8} lg={6} key={file.id}>
-              <Card
-                hoverable
-                style={{ borderRadius: 16 }}
-                styles={{ body: { padding: 16 } }}
-              >
-                <Space
-                  direction="vertical"
-                  style={{ width: "100%" }}
-                  size={8}
-                >
-                  <Space
-                    align="start"
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Space>
-                      <FolderOpenOutlined />
-                      <Text strong>{file.original_name}</Text>
-                    </Space>
-
-                    {file.category && file.category !== "전체" && (
-                      <Tag color={CATEGORY_COLOR[file.category] || "default"}>
-                        {file.category}
-                      </Tag>
-                    )}
-                  </Space>
-
-                  {file.folder && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      폴더: {file.folder}
-                    </Text>
-                  )}
-
-                  <div style={{ marginTop: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      업로드일: {file.upload_date || "-"}
-                    </Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      파일 크기: {formatFileSize(file.size)}
-                    </Text>
-                  </div>
-
-                  <Space
-                    style={{
-                      marginTop: 12,
-                      width: "100%",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                    align="center"
-                  >
-                    <Button
-                      type="default"
-                      icon={<DownloadOutlined />}
-                      onClick={() => handleDownload(file)}
-                    >
-                      다운로드
-                    </Button>
-                    <Button
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDelete(file)}
-                    />
-                  </Space>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-
-          {!loading && files.length === 0 && (
-            <Col span={24} style={{ textAlign: "center", marginTop: 40 }}>
-              <Text type="secondary">
-                아직 등록된 IR/마케팅 자료가 없습니다.
-              </Text>
-            </Col>
-          )}
-        </Row>
-
-        {/* 업로드 모달 */}
-        <Modal
-          title="IR/마케팅 자료 업로드"
-          open={uploadModalOpen}
-          onCancel={() => {
-            setUploadModalOpen(false);
-            setUploadFile(null);
-            uploadForm.resetFields();
-          }}
-          onOk={() => uploadForm.submit()}
-          okText="업로드"
-          cancelText="취소"
-          destroyOnClose
         >
           <Form
-            form={uploadForm}
-            layout="vertical"
-            onFinish={handleUploadSubmit}
+            form={form}
+            layout="inline"
+            onFinish={onFinish}
+            style={{ rowGap: 8 }}
           >
-            <Form.Item label="파일" required>
-              <Upload
-                beforeUpload={() => false}
-                maxCount={1}
-                onChange={(info) => {
-                  const fileList = info.fileList;
-                  if (fileList.length > 0) {
-                    setUploadFile(fileList[0].originFileObj);
-                  } else {
-                    setUploadFile(null);
-                  }
-                }}
-              >
-                <Button icon={<UploadOutlined />}>파일 선택</Button>
-              </Upload>
-            </Form.Item>
-
-            <Form.Item name="category" label="구분" initialValue="IR">
-              <Select>
-                <Select.Option value="IR">IR</Select.Option>
-                <Select.Option value="사진">사진</Select.Option>
-                <Select.Option value="영상">영상</Select.Option>
-                <Select.Option value="브로셔">브로셔</Select.Option>
-                <Select.Option value="전시회">전시회</Select.Option>
+            <Form.Item name="category" initialValue="IR">
+              <Select style={{ width: 160 }}>
+                <Option value="IR">IR</Option>
+                <Option value="브로셔">브로셔</Option>
+                <Option value="전시회">전시회</Option>
+                <Option value="사진">사진</Option>
+                <Option value="영상">영상</Option>
+                <Option value="기타">기타</Option>
               </Select>
             </Form.Item>
 
-            <Form.Item
-              name="folder"
-              label="폴더명 (선택)"
-              tooltip='예: "Formnext2025", "SEMI2026" 등'
-            >
-              <Input placeholder="폴더명을 입력하지 않으면 기본 IR 폴더에 저장됩니다." />
+            <Form.Item name="folder">
+              <Input placeholder="폴더명 (예: Formnext2025)" />
+            </Form.Item>
+
+            <Form.Item>
+              <div>
+                <Button
+                  type="default"
+                  icon={<PaperClipOutlined />}
+                  onClick={() => {
+                    const el = document.getElementById(
+                      "ir-file-input"
+                    ) as HTMLInputElement | null;
+                    if (el) el.click();
+                  }}
+                >
+                  파일 선택(다중)
+                </Button>
+                <input
+                  id="ir-file-input"
+                  type="file"
+                  multiple
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
+                <div style={{ marginTop: 4, fontSize: 12, color: "#888" }}>
+                  {selectedFiles && selectedFiles.length > 0
+                    ? `${selectedFiles.length}개 파일 선택됨`
+                    : "선택된 파일 없음"}
+                </div>
+              </div>
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={<PlusOutlined />}
+                loading={uploading}
+              >
+                업로드
+              </Button>
             </Form.Item>
           </Form>
-        </Modal>
+        </div>
+
+        {/* 새로고침 */}
+        <Space style={{ marginBottom: 8 }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchData}
+            loading={loading}
+          >
+            새로고침
+          </Button>
+        </Space>
+
+        {/* 목록 테이블 */}
+        <Table
+          style={{ marginTop: 8 }}
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 20 }}
+          size="middle"
+        />
       </div>
     </AppLayout>
   );
