@@ -10,6 +10,8 @@ import {
   FundOutlined,
   ProjectOutlined,
   LogoutOutlined,
+  // ✅ 공정 데이터용 아이콘 하나 추가
+  SettingOutlined,
 } from "@ant-design/icons";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,7 +20,13 @@ const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 // 뷰어가 접근하면 안 되는 페이지들
-const ADMIN_ONLY_PATHS = ["/finance", "/assets", "/projects"];
+// ✅ 공정 데이터도 원가/공정 정보라 민감하다고 보고 admin 전용으로 넣어줌
+const ADMIN_ONLY_PATHS = [
+  "/finance",
+  "/assets",
+  "/projects",
+  "/process-data", // <-- 추가
+];
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -85,6 +93,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const selectedKey =
     pathname === "/" ? "/dashboard" : pathname.split("?")[0];
 
+  // ✅ 공정 데이터 메뉴 추가
   const menuItems = [
     {
       key: "/dashboard",
@@ -105,6 +114,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       key: "/ir",
       icon: <FileImageOutlined />,
       label: "IR/마케팅 자료",
+    },
+    {
+      key: "/process-data",
+      icon: <SettingOutlined />,
+      label: "공정 데이터",
+      adminOnly: true, // 뷰어는 조회 제한
     },
     {
       key: "/finance",
