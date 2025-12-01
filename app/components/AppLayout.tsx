@@ -10,8 +10,8 @@ import {
   FundOutlined,
   ProjectOutlined,
   LogoutOutlined,
-  // ✅ 공정 데이터용 아이콘 하나 추가
   SettingOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,13 +19,12 @@ import { useEffect, useState } from "react";
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-// 뷰어가 접근하면 안 되는 페이지들
-// ✅ 공정 데이터도 원가/공정 정보라 민감하다고 보고 admin 전용으로 넣어줌
+// 🔒 뷰어가 접근하면 안 되는 페이지들
 const ADMIN_ONLY_PATHS = [
   "/finance",
   "/assets",
   "/projects",
-  "/process-data", // <-- 추가
+  "/process-data",
 ];
 
 interface AppLayoutProps {
@@ -40,7 +39,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [role, setRole] = useState<"admin" | "viewer" | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  // ================================
   // 로그인 여부 체크
+  // ================================
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -60,7 +61,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     setCheckingAuth(false);
   }, [router]);
 
-  // 뷰어의 직접 주소 입력 접근 막기
+  // ================================
+  // 뷰어의 직접 주소 입력 차단
+  // ================================
   useEffect(() => {
     if (!role) return;
     if (role === "viewer" && ADMIN_ONLY_PATHS.includes(pathname)) {
@@ -69,7 +72,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [role, pathname, router]);
 
-  // 권한 확인 중이면 간단한 로딩
+  // 로딩 화면
   if (checkingAuth) {
     return (
       <Layout
@@ -85,20 +88,24 @@ export default function AppLayout({ children }: AppLayoutProps) {
     );
   }
 
-  // 로그인 안 됐으면 아무것도 렌더X (이미 /login으로 보냄)
-  if (!role) {
-    return null;
-  }
+  if (!role) return null;
 
+  // ================================
+  // 사이드바 메뉴 구성
+  // ================================
   const selectedKey =
     pathname === "/" ? "/dashboard" : pathname.split("?")[0];
 
-  // ✅ 공정 데이터 메뉴 추가
   const menuItems = [
     {
       key: "/dashboard",
       icon: <DashboardOutlined />,
       label: "대시보드",
+    },
+    {
+      key: "/production",
+      icon: <BarChartOutlined />,
+      label: "제작 및 매출 현황",
     },
     {
       key: "/research",
@@ -119,7 +126,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       key: "/process-data",
       icon: <SettingOutlined />,
       label: "공정 데이터",
-      adminOnly: true, // 뷰어는 조회 제한
+      adminOnly: true,
     },
     {
       key: "/finance",
@@ -141,7 +148,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     },
   ];
 
-  // 뷰어도 메뉴는 보이되, adminOnly 메뉴는 회색(disabled)
+  // 뷰어는 adminOnly 메뉴 비활성화(disabled)
   const antMenuItems = menuItems.map((item) => ({
     key: item.key,
     icon: item.icon,
@@ -149,15 +156,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
     disabled: role === "viewer" && item.adminOnly === true,
   }));
 
+  // ================================
+  // 메뉴 클릭
+  // ================================
   const handleMenuClick = (key: string) => {
     const target = menuItems.find((m) => m.key === key);
     if (role === "viewer" && target?.adminOnly) {
-      message.warning("뷰어 권한으로는 해당 메뉴에 접근할 수 없습니다.");
+      message.warning("뷰어 권한으로는 접근할 수 없습니다.");
       return;
     }
     router.push(key);
   };
 
+  // ================================
+  // 로그아웃
+  // ================================
   const handleLogout = () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("role");
@@ -165,6 +178,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     router.push("/login");
   };
 
+  // ================================
+  // 화면 렌더
+  // ================================
   return (
     <Layout style={{ minHeight: "100vh" }}>
       <Sider
@@ -174,7 +190,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         width={240}
         style={{ display: "flex", flexDirection: "column" }}
       >
-        {/* 상단 타이틀 */}
+        {/* 상단 로고/타이틀 */}
         <div
           style={{
             height: 64,
@@ -190,22 +206,22 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </Text>
           {!collapsed && (
             <Text style={{ color: "#d9d9d9", fontSize: 12 }}>
-              뷰어 {role === "viewer" ? "Viewer" : "Admin"}
+              {role === "admin" ? "관리자(Admin)" : "뷰어(Viewer)"}
             </Text>
           )}
         </div>
 
-        {/* 메뉴 영역 */}
+        {/* 메뉴 */}
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[selectedKey]}
           items={antMenuItems}
-          onClick={({ key }) => handleMenuClick(key as string)}
+          onClick={({ key }) => handleMenuClick(key)}
           style={{ flex: 1 }}
         />
 
-        {/* 하단 로그아웃 버튼 */}
+        {/* 로그아웃 버튼 */}
         <div
           style={{
             padding: collapsed ? "8px" : "12px 16px",
@@ -268,7 +284,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           >
             {children}
 
-            {/* 뷰어 안내 바 */}
+            {/* 뷰어 하단 안내 */}
             {role === "viewer" && (
               <div
                 style={{
@@ -281,8 +297,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
                   fontSize: 12,
                 }}
               >
-                일부 메뉴는 뷰어 권한으로 접근이 제한됩니다. 전체 데이터
-                접근이 필요한 경우 관리자에게 문의하세요.
+                일부 메뉴는 뷰어 권한으로 접근이 제한됩니다.
               </div>
             )}
           </div>
