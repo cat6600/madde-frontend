@@ -33,6 +33,8 @@ interface IRRecord {
   folder: string | null;
   upload_date: string;
   size: number;
+  // ✅ 백엔드가 추가로 내려주는 Supabase 파일 URL
+  file_url?: string | null;
 }
 
 // 탭에서 쓸 key → 백엔드 category 매핑
@@ -47,6 +49,11 @@ export default function IRPage() {
 
   // 🔹 탭 상태 (전체 / IR / 사진 / 영상 / 기타)
   const [activeTab, setActiveTab] = useState<TabKey>("all");
+
+useEffect(() => {
+  console.log("🔍 API_BASE_URL =", API_BASE_URL);
+}, []);
+
 
   // ---- 목록 조회 ----
   const fetchData = async (tab: TabKey) => {
@@ -132,14 +139,6 @@ export default function IRPage() {
     }
   };
 
-  // ---- 파일 URL 빌드 (백엔드 Static 구조와 정확히 맞춤) ----
-  const buildFileUrl = (storedName: string, folder?: string | null) => {
-    if (folder) {
-      return `${API_BASE_URL}/uploads/ir/${folder}/${storedName}`;
-    }
-    return `${API_BASE_URL}/uploads/ir/${storedName}`;
-  };
-
   const columns = [
     {
       title: "파일명",
@@ -176,15 +175,20 @@ export default function IRPage() {
       title: "보기",
       key: "view",
       width: 100,
-      render: (_: any, record: IRRecord) => (
-        <a
-          href={buildFileUrl(record.stored_name, record.folder)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          보기
-        </a>
-      ),
+      render: (_: any, record: IRRecord) => {
+        const url = record.file_url ?? "#";
+        const disabled = !record.file_url;
+        return (
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            style={disabled ? { pointerEvents: "none", color: "#ccc" } : {}}
+          >
+            보기
+          </a>
+        );
+      },
     },
     {
       title: "관리",
@@ -323,7 +327,7 @@ export default function IRPage() {
           </Form>
         </div>
 
-        {/* 🔹 목록 테이블 (서버에서 이미 필터된 데이터) */}
+        {/* 🔹 목록 테이블 */}
         <Table
           style={{ marginTop: 8 }}
           columns={columns}
