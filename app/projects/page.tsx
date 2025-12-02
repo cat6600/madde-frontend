@@ -186,7 +186,7 @@ export default function ProjectsPage() {
         <Tag color={t === "R&D" ? "blue" : "green"}>{t}</Tag>
       ),
     },
-    { title: "수행기간", dataIndex: "period", key: "period", width: 220 },
+    { title: "수행기간", dataIndex: "period", key: "period", width: 140 },
     {
       title: "지원금",
       dataIndex: "budget",
@@ -212,6 +212,7 @@ export default function ProjectsPage() {
       title: "과제명",
       dataIndex: "participants",
       key: "participants",
+      width: 330,
     },
     {
       title: "작업",
@@ -291,7 +292,7 @@ export default function ProjectsPage() {
             loading={loading}
             pagination={false}
             size="middle"
-            scroll={{ x: 1100 }} // 컬럼 width 반영되도록
+            scroll={{ x: 1300 }} // 컬럼 width 반영되도록
             onRow={(record) => ({
               onClick: () => handleRowClick(record as Project),
             })}
