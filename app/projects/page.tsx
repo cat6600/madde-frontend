@@ -46,6 +46,16 @@ interface Project {
   last_updated?: string;
 }
 
+type StatusColorMap = Record<string, string>;
+
+const statusColors: StatusColorMap = {
+  진행중: "green",
+  신청예정: "blue",
+  신청완료: "orange",
+  미지원: "red",
+  선정완료: "purple",
+};
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,7 +71,8 @@ export default function ProjectsPage() {
       setLoading(true);
       const res = await axios.get<Project[]>(`${API_BASE_URL}/projects`);
       setProjects(res.data);
-    } catch {
+    } catch (error) {
+      console.error(error);
       message.error("데이터 불러오기 실패 ❌");
     } finally {
       setLoading(false);
@@ -72,19 +83,24 @@ export default function ProjectsPage() {
     fetchProjects();
   }, []);
 
-  /** 📤 파일 업로드 */
-  const handleFileUpload = async (id: number, file: any) => {
+  /** 📤 파일 업로드 (단일 파일) */
+  const handleFileUpload = async (id: number, file: File) => {
     const formData = new FormData();
     formData.append("file", file);
+
     try {
       await axios.post(`${API_BASE_URL}/projects/${id}/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       message.success("파일 업로드 완료 ✅");
       fetchProjects();
-    } catch {
+    } catch (error) {
+      console.error(error);
       message.error("업로드 실패 ❌");
     }
+
+    // antd Upload에서 실제 업로드는 우리가 직접 했으니
+    // 기본 업로드 동작은 막기 위해 false 반환
     return false;
   };
 
@@ -97,13 +113,14 @@ export default function ProjectsPage() {
       await axios.delete(`${API_BASE_URL}/projects/${id}`);
       message.success("삭제 완료 ✅");
       fetchProjects();
-      setSelectedProject(null);
-    } catch {
+      setSelectedProject((prev) => (prev?.id === id ? null : prev));
+    } catch (error) {
+      console.error(error);
       message.error("삭제 실패 ❌");
     }
   };
 
-  /** ✏️ 수정 */
+  /** ✏️ 수정 버튼 클릭 시 */
   const handleEdit = (record: Project) => {
     setIsEditMode(true);
     setCurrentId(record.id);
@@ -134,24 +151,16 @@ export default function ProjectsPage() {
       setCurrentId(null);
       form.resetFields();
       fetchProjects();
-    } catch {
+    } catch (error) {
+      console.error(error);
       message.error("저장 실패 ❌");
     }
-  };
-
-  /** 🎨 상태 색상 */
-  const statusColors: Record<string, string> = {
-    진행중: "green",
-    신청예정: "blue",
-    신청완료: "orange",
-    미지원: "red",
-    선정완료: "purple",
   };
 
   /** 📋 테이블 컬럼 */
   const columns = [
     {
-      // 🔁 1열: 과제명 → 사업명 (DB 필드는 그대로 title)
+      // 1열: 과제명 → 사업명 (DB 필드는 title)
       title: "사업명",
       dataIndex: "title",
       key: "title",
@@ -161,30 +170,32 @@ export default function ProjectsPage() {
       title: "주관기관",
       dataIndex: "organization",
       key: "organization",
-      width: 150, // 폭 줄이기
-      render: (t: string) => (
-        <Tag
-          color="purple"
-          style={{
-            maxWidth: 130,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            display: "inline-block",
-          }}
-        >
-          {t}
-        </Tag>
-      ),
+      width: 150,
+      render: (t: string | undefined) =>
+        t ? (
+          <Tag
+            color="purple"
+            style={{
+              maxWidth: 130,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "inline-block",
+            }}
+          >
+            {t}
+          </Tag>
+        ) : (
+          "—"
+        ),
     },
     {
       title: "유형",
       dataIndex: "type",
       key: "type",
       width: 110,
-      render: (t: string) => (
-        <Tag color={t === "R&D" ? "blue" : "green"}>{t}</Tag>
-      ),
+      render: (t: string | undefined) =>
+        t ? <Tag color={t === "R&D" ? "blue" : "green"}>{t}</Tag> : "—",
     },
     { title: "수행기간", dataIndex: "period", key: "period", width: 140 },
     {
@@ -192,7 +203,7 @@ export default function ProjectsPage() {
       dataIndex: "budget",
       key: "budget",
       width: 120,
-      render: (v: number | null) => {
+      render: (v: number | null | undefined) => {
         if (v === undefined || v === null || isNaN(Number(v))) return "—";
         return `${Number(v).toLocaleString()}억 원`;
       },
@@ -202,17 +213,23 @@ export default function ProjectsPage() {
       dataIndex: "status",
       key: "status",
       width: 110,
-      render: (s: string) => (
-        <Tag color={statusColors[s] || "default"}>{s}</Tag>
-      ),
+      render: (s: string | undefined) =>
+        s ? <Tag color={statusColors[s] || "default"}>{s}</Tag> : "—",
     },
-    { title: "신청 마감일", dataIndex: "due_date", key: "due_date", width: 130 },
     {
-      // 🔁 participants를 '과제명'으로 노출
+      title: "신청 마감일",
+      dataIndex: "due_date",
+      key: "due_date",
+      width: 130,
+      render: (d: string | null | undefined) => d || "—",
+    },
+    {
+      // participants를 '과제명'으로 사용
       title: "과제명",
       dataIndex: "participants",
       key: "participants",
       width: 330,
+      render: (t: string | undefined) => t || "—",
     },
     {
       title: "작업",
@@ -220,7 +237,6 @@ export default function ProjectsPage() {
       width: 140,
       render: (_: any, record: Project) => (
         <Space size="small">
-          {/* 아이콘만 있는 작은 버튼들로 컴팩트하게 */}
           <Button
             size="small"
             type="text"
@@ -237,7 +253,7 @@ export default function ProjectsPage() {
             onClick={() => handleDelete(record.id)}
           />
           <Upload
-            beforeUpload={(file) => handleFileUpload(record.id, file)}
+            beforeUpload={(file) => handleFileUpload(record.id, file as File)}
             showUploadList={false}
           >
             <Button
@@ -292,7 +308,7 @@ export default function ProjectsPage() {
             loading={loading}
             pagination={false}
             size="middle"
-            scroll={{ x: 1300 }} // 컬럼 width 반영되도록
+            scroll={{ x: 1300 }}
             onRow={(record) => ({
               onClick: () => handleRowClick(record as Project),
             })}
@@ -389,7 +405,7 @@ export default function ProjectsPage() {
           onOk={() => form.submit()}
           okText="저장"
           cancelText="취소"
-          destroyOnHidden
+          destroyOnClose
         >
           <Form form={form} onFinish={handleAddOrUpdate} layout="vertical">
             <Form.Item

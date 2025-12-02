@@ -8,9 +8,9 @@ import {
   Select,
   Table,
   Typography,
-  Space,
   message,
   Popconfirm,
+  Tabs,
 } from "antd";
 import {
   ReloadOutlined,
@@ -35,15 +35,8 @@ interface IRRecord {
   size: number;
 }
 
-const CATEGORY_FILTER_OPTIONS = [
-  "전체",
-  "IR",
-  "브로셔",
-  "전시회",
-  "사진",
-  "영상",
-  "기타",
-];
+// 탭에서 쓸 key → 백엔드 category 매핑
+type TabKey = "all" | "IR" | "브로셔" | "전시회" | "사진" | "영상" | "기타";
 
 export default function IRPage() {
   const [data, setData] = useState<IRRecord[]>([]);
@@ -52,15 +45,17 @@ export default function IRPage() {
   const [form] = Form.useForm();
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
-  // 화면 상단 필터 상태
-  const [filterCategory, setFilterCategory] = useState<string>("전체");
+  // 🔹 탭 상태 (전체 / IR / 사진 / 영상 / 기타)
+  const [activeTab, setActiveTab] = useState<TabKey>("all");
 
-  const fetchData = async (categoryFilter: string = "전체") => {
+  // ---- 목록 조회 ----
+  const fetchData = async (tab: TabKey) => {
     try {
       setLoading(true);
       const params: any = {};
-      if (categoryFilter && categoryFilter !== "전체") {
-        params.category = categoryFilter;
+      // "전체"가 아닌 탭이면 category 쿼리로 보냄
+      if (tab !== "all") {
+        params.category = tab;
       }
       const res = await axios.get<IRRecord[]>(`${API_BASE_URL}/ir`, {
         params,
@@ -75,13 +70,15 @@ export default function IRPage() {
   };
 
   useEffect(() => {
-    fetchData(filterCategory);
-  }, [filterCategory]);
+    fetchData(activeTab);
+  }, [activeTab]);
 
+  // ---- 파일 선택 ----
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(e.target.files);
   };
 
+  // ---- 업로드 ----
   const onFinish = async (values: any) => {
     if (!selectedFiles || selectedFiles.length === 0) {
       message.warning("업로드할 파일을 선택해 주세요.");
@@ -92,7 +89,7 @@ export default function IRPage() {
       setUploading(true);
 
       const formData = new FormData();
-      // ✅ 여러 파일 모두 "file" 키로 append → 백엔드에서 List[UploadFile]로 받음
+      // ✅ 여러 파일을 같은 키 "file"로 append → 백엔드 file: List[UploadFile]
       Array.from(selectedFiles).forEach((file) => {
         formData.append("file", file);
       });
@@ -113,8 +110,8 @@ export default function IRPage() {
       ) as HTMLInputElement | null;
       if (el) el.value = "";
 
-      // 업로드 후, 현재 필터 기준으로 다시 조회
-      fetchData(filterCategory);
+      // 업로드 후, 현재 탭 기준으로 다시 조회
+      fetchData(activeTab);
     } catch (error) {
       console.error(error);
       message.error("IR 자료 업로드 실패 ❌");
@@ -123,17 +120,19 @@ export default function IRPage() {
     }
   };
 
+  // ---- 삭제 ----
   const handleDelete = async (id: number, original: string) => {
     try {
       await axios.delete(`${API_BASE_URL}/ir/${id}`);
       message.success(`"${original}" 삭제 완료 ✅`);
-      fetchData(filterCategory);
+      fetchData(activeTab);
     } catch (error) {
       console.error(error);
       message.error("IR 자료 삭제 실패 ❌");
     }
   };
 
+  // ---- 파일 URL 빌드 (백엔드 Static 구조와 정확히 맞춤) ----
   const buildFileUrl = (storedName: string, folder?: string | null) => {
     if (folder) {
       return `${API_BASE_URL}/uploads/ir/${folder}/${storedName}`;
@@ -217,36 +216,33 @@ export default function IRPage() {
           관리합니다.
         </Text>
 
-        {/* 🔹 상단 필터 (전체 / IR / 사진 / 영상 ...) */}
+        {/* 🔹 상단: 탭 + 새로고침 */}
         <div
           style={{
             marginTop: 24,
             marginBottom: 8,
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid #f0f0f0",
-            background: "#fafafa",
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
             gap: 12,
-            flexWrap: "wrap",
           }}
         >
-          <Text strong>보기 필터</Text>
-          <Select
-            value={filterCategory}
-            onChange={(v) => setFilterCategory(v)}
-            style={{ width: 160 }}
-          >
-            {CATEGORY_FILTER_OPTIONS.map((c) => (
-              <Option key={c} value={c}>
-                {c}
-              </Option>
-            ))}
-          </Select>
+          <Tabs
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as TabKey)}
+            items={[
+              { key: "all", label: "전체" },
+              { key: "IR", label: "IR" },
+              { key: "브로셔", label: "브로셔" },
+              { key: "전시회", label: "전시회" },
+              { key: "사진", label: "사진" },
+              { key: "영상", label: "영상" },
+              { key: "기타", label: "기타" },
+            ]}
+          />
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => fetchData(filterCategory)}
+            onClick={() => fetchData(activeTab)}
             loading={loading}
           >
             새로고침
@@ -327,7 +323,7 @@ export default function IRPage() {
           </Form>
         </div>
 
-        {/* 🔹 목록 테이블 */}
+        {/* 🔹 목록 테이블 (서버에서 이미 필터된 데이터) */}
         <Table
           style={{ marginTop: 8 }}
           columns={columns}

@@ -4,18 +4,18 @@ import { useState, useEffect } from "react";
 import {
   Table,
   Button,
-  Upload,
   message,
   Typography,
   Form,
   Input,
   InputNumber,
   DatePicker,
+  Upload,
 } from "antd";
 import {
   UploadOutlined,
-  DeleteOutlined,
   ReloadOutlined,
+  // DeleteOutlined,  // 삭제 기능은 백엔드 REST 추가 후 다시 활성화
 } from "@ant-design/icons";
 import axios from "axios";
 import AppLayout from "../components/AppLayout";
@@ -56,15 +56,16 @@ export default function ResearchPage() {
     fetchData();
   }, []);
 
-  const deleteData = async (id: number) => {
-    try {
-      await axios.delete(`${API_BASE_URL}/research/${id}`);
-      message.success("삭제 완료 ✅");
-      fetchData();
-    } catch {
-      message.error("삭제 실패 ❌");
-    }
-  };
+  // 삭제는 백엔드 DELETE /research/{id} 추가되면 다시 살리기
+  // const deleteData = async (id: number) => {
+  //   try {
+  //     await axios.delete(`${API_BASE_URL}/research/${id}`);
+  //     message.success("삭제 완료 ✅");
+  //     fetchData();
+  //   } catch {
+  //     message.error("삭제 실패 ❌");
+  //   }
+  // };
 
   const onFinish = async (values: any) => {
     const formData = new FormData();
@@ -74,8 +75,13 @@ export default function ResearchPage() {
     formData.append("tester", values.tester);
     formData.append("test_date", values.test_date.format("YYYY-MM-DD"));
 
-    if (values.file && values.file.file) {
-      formData.append("file", values.file.file);
+    // ✅ antd Upload → 실제 브라우저 File 객체(originFileObj) 사용
+    const fileList = values.file as any[] | undefined;
+    if (fileList && fileList.length > 0) {
+      const fileObj = fileList[0].originFileObj;
+      if (fileObj) {
+        formData.append("file", fileObj);
+      }
     }
 
     try {
@@ -91,7 +97,7 @@ export default function ResearchPage() {
   };
 
   const columns = [
-    { title: "ID", dataIndex: "id", key: "id" },
+    { title: "ID", dataIndex: "id", key: "id", width: 70 },
     { title: "시편 종류", dataIndex: "sample_type", key: "sample_type" },
     { title: "물성 항목", dataIndex: "property", key: "property" },
     { title: "측정 값", dataIndex: "value", key: "value" },
@@ -114,19 +120,20 @@ export default function ResearchPage() {
           "-"
         ),
     },
-    {
-      title: "삭제",
-      key: "delete",
-      render: (record: ResearchRecord) => (
-        <Button
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => deleteData(record.id)}
-        >
-          삭제
-        </Button>
-      ),
-    },
+    // 삭제 기능은 백엔드에 DELETE /research/{id} 추가 후 다시 활성화
+    // {
+    //   title: "삭제",
+    //   key: "delete",
+    //   render: (record: ResearchRecord) => (
+    //     <Button
+    //       danger
+    //       icon={<DeleteOutlined />}
+    //       onClick={() => deleteData(record.id)}
+    //     >
+    //       삭제
+    //     </Button>
+    //   ),
+    // },
   ];
 
   return (
@@ -138,7 +145,7 @@ export default function ResearchPage() {
           form={form}
           layout="inline"
           onFinish={onFinish}
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: 24, rowGap: 8 }}
         >
           <Form.Item name="sample_type" rules={[{ required: true }]}>
             <Input placeholder="시편 종류 (RBSC/RSiC)" />
@@ -155,15 +162,18 @@ export default function ResearchPage() {
           <Form.Item name="test_date" rules={[{ required: true }]}>
             <DatePicker placeholder="시험 일자" />
           </Form.Item>
+
+          {/* ✅ 파일 업로드: fileList + originFileObj 사용 */}
           <Form.Item
             name="file"
-            valuePropName="file"
-            getValueFromEvent={(e) => e}
+            valuePropName="fileList"
+            getValueFromEvent={(e) => e?.fileList || []}
           >
-            <Upload beforeUpload={() => false}>
+            <Upload beforeUpload={() => false} maxCount={1}>
               <Button icon={<UploadOutlined />}>파일</Button>
             </Upload>
           </Form.Item>
+
           <Form.Item>
             <Button type="primary" htmlType="submit">
               등록
@@ -185,7 +195,8 @@ export default function ResearchPage() {
           dataSource={data}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 5 }}
+          pagination={{ pageSize: 10 }}
+          size="middle"
         />
       </div>
     </AppLayout>

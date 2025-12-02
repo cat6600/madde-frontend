@@ -29,10 +29,10 @@ interface IPRecord {
   id: number;
   title: string;
   number: string;
-  apply_date: string;
-  reg_date: string;
-  inventors: string;
-  status: string;
+  apply_date: string | null;
+  reg_date: string | null;
+  inventors: string | null;
+  status: string | null;
 }
 
 interface IPFile {
@@ -53,9 +53,11 @@ export default function IPPage() {
   const [fileModalOpen, setFileModalOpen] = useState(false);
   const [currentIP, setCurrentIP] = useState<IPRecord | null>(null);
   const [ipFiles, setIpFiles] = useState<IPFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
 
+  /** 📦 IP 목록 불러오기 */
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -73,6 +75,7 @@ export default function IPPage() {
     fetchData();
   }, []);
 
+  /** ➕ IP 등록 */
   const onFinish = async (values: any) => {
     try {
       const formData = new FormData();
@@ -102,6 +105,7 @@ export default function IPPage() {
     }
   };
 
+  /** 🗑 IP 삭제 */
   const handleDelete = async (id: number) => {
     try {
       await axios.delete(`${API_BASE_URL}/ip/${id}`);
@@ -114,7 +118,7 @@ export default function IPPage() {
   };
 
   // ================================
-  // 파일 관리 모달 관련 로직
+  // 📎 파일 관리 모달 관련 로직
   // ================================
   const openFileModal = async (record: IPRecord) => {
     setCurrentIP(record);
@@ -132,17 +136,18 @@ export default function IPPage() {
 
   const fetchIpFiles = async (ipId: number) => {
     try {
+      setFilesLoading(true);
       const res = await axios.get<IPFile[]>(`${API_BASE_URL}/ip/${ipId}/files`);
       setIpFiles(res.data);
     } catch (error) {
       console.error(error);
       message.error("IP 파일 목록 불러오기 실패 ❌");
+    } finally {
+      setFilesLoading(false);
     }
   };
 
-  const handleFileInputChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(e.target.files);
   };
 
@@ -156,8 +161,9 @@ export default function IPPage() {
     try {
       setUploading(true);
       const formData = new FormData();
+      // ✅ 백엔드 파라미터 이름: files: List[UploadFile] = File(...)
       Array.from(selectedFiles).forEach((file) => {
-        formData.append("files", file); // ✅ 여러 파일
+        formData.append("files", file);
       });
 
       await axios.post(
@@ -170,6 +176,13 @@ export default function IPPage() {
 
       message.success("파일 업로드 완료 ✅");
       setSelectedFiles(null);
+
+      // input 값 초기화
+      const inputEl = document.getElementById(
+        "ip-file-input"
+      ) as HTMLInputElement | null;
+      if (inputEl) inputEl.value = "";
+
       await fetchIpFiles(currentIP.id);
     } catch (error) {
       console.error(error);
@@ -179,6 +192,7 @@ export default function IPPage() {
     }
   };
 
+  /** 🗑 개별 파일 삭제 */
   const handleDeleteFile = async (fileId: number) => {
     if (!currentIP) return;
     try {
@@ -190,6 +204,10 @@ export default function IPPage() {
       message.error("파일 삭제 실패 ❌");
     }
   };
+
+  /** 📎 파일 URL */
+  const buildFileUrl = (storedName: string) =>
+    `${API_BASE_URL}/uploads/ip/${storedName}`;
 
   const columns = [
     {
@@ -269,9 +287,6 @@ export default function IPPage() {
       ),
     },
   ];
-
-  const buildFileUrl = (storedName: string) =>
-    `${API_BASE_URL}/uploads/ip/${storedName}`;
 
   return (
     <AppLayout>
@@ -386,10 +401,16 @@ export default function IPPage() {
             <Text strong>파일 업로드</Text>
             <div style={{ marginTop: 8 }}>
               <input
+                id="ip-file-input"
                 type="file"
                 multiple
                 onChange={handleFileInputChange}
               />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
+              {selectedFiles && selectedFiles.length > 0
+                ? `${selectedFiles.length}개 파일 선택됨`
+                : "선택된 파일 없음"}
             </div>
             <div style={{ marginTop: 8 }}>
               <Button
@@ -408,6 +429,7 @@ export default function IPPage() {
             style={{ marginTop: 8 }}
             size="small"
             rowKey="id"
+            loading={filesLoading}
             pagination={false}
             dataSource={ipFiles}
             columns={[
