@@ -11,11 +11,12 @@ import {
   InputNumber,
   DatePicker,
   Upload,
+  Popconfirm,
 } from "antd";
 import {
   UploadOutlined,
   ReloadOutlined,
-  // DeleteOutlined,  // 삭제 기능은 백엔드 REST 추가 후 다시 활성화
+  DeleteOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
 import AppLayout from "../components/AppLayout";
@@ -56,16 +57,16 @@ export default function ResearchPage() {
     fetchData();
   }, []);
 
-  // 삭제는 백엔드 DELETE /research/{id} 추가되면 다시 살리기
-  // const deleteData = async (id: number) => {
-  //   try {
-  //     await axios.delete(`${API_BASE_URL}/research/${id}`);
-  //     message.success("삭제 완료 ✅");
-  //     fetchData();
-  //   } catch {
-  //     message.error("삭제 실패 ❌");
-  //   }
-  // };
+  // 🔥 삭제 기능 (백엔드 DELETE /research/{id} 사용)
+  const deleteData = async (id: number) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/research/${id}`);
+      message.success("삭제 완료 ✅");
+      fetchData();
+    } catch {
+      message.error("삭제 실패 ❌");
+    }
+  };
 
   const onFinish = async (values: any) => {
     const formData = new FormData();
@@ -75,7 +76,7 @@ export default function ResearchPage() {
     formData.append("tester", values.tester);
     formData.append("test_date", values.test_date.format("YYYY-MM-DD"));
 
-    // ✅ antd Upload → 실제 브라우저 File 객체(originFileObj) 사용
+    // ✅ antd Upload → fileList + originFileObj에서 실제 File 꺼내기
     const fileList = values.file as any[] | undefined;
     if (fileList && fileList.length > 0) {
       const fileObj = fileList[0].originFileObj;
@@ -120,20 +121,29 @@ export default function ResearchPage() {
           "-"
         ),
     },
-    // 삭제 기능은 백엔드에 DELETE /research/{id} 추가 후 다시 활성화
-    // {
-    //   title: "삭제",
-    //   key: "delete",
-    //   render: (record: ResearchRecord) => (
-    //     <Button
-    //       danger
-    //       icon={<DeleteOutlined />}
-    //       onClick={() => deleteData(record.id)}
-    //     >
-    //       삭제
-    //     </Button>
-    //   ),
-    // },
+    {
+      title: "삭제",
+      key: "delete",
+      width: 90,
+      render: (record: ResearchRecord) => (
+        <Popconfirm
+          title="연구 데이터 삭제"
+          description={`ID ${record.id} 항목을 삭제하시겠습니까?`}
+          okText="삭제"
+          cancelText="취소"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => deleteData(record.id)}
+        >
+          <Button
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+          >
+            삭제
+          </Button>
+        </Popconfirm>
+      ),
+    },
   ];
 
   return (
@@ -163,7 +173,7 @@ export default function ResearchPage() {
             <DatePicker placeholder="시험 일자" />
           </Form.Item>
 
-          {/* ✅ 파일 업로드: fileList + originFileObj 사용 */}
+          {/* 파일 업로드: fileList + originFileObj */}
           <Form.Item
             name="file"
             valuePropName="fileList"

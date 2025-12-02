@@ -48,10 +48,12 @@ export default function FinancePage() {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(
-    null
-  );
+  const [editingInvestment, setEditingInvestment] =
+    useState<Investment | null>(null);
 
+  // -----------------------------
+  // 투자 이력 조회
+  // -----------------------------
   const fetchInvestments = async () => {
     try {
       setLoading(true);
@@ -71,6 +73,9 @@ export default function FinancePage() {
     fetchInvestments();
   }, []);
 
+  // -----------------------------
+  // KPI 계산
+  // -----------------------------
   const { totalAmount, totalShares, roundCount, shareholderList } = useMemo(() => {
     const totalAmount = investments.reduce(
       (sum, i) => sum + (i.amount || 0),
@@ -104,6 +109,9 @@ export default function FinancePage() {
     return { totalAmount, totalShares, roundCount, shareholderList };
   }, [investments]);
 
+  // -----------------------------
+  // 투자 이력 등록 (POST /investments)
+  // -----------------------------
   const handleSubmit = async (values: any) => {
     try {
       const formData = new FormData();
@@ -120,8 +128,8 @@ export default function FinancePage() {
           ? values.registration_date.format("YYYY-MM-DD")
           : ""
       );
-      formData.append("shares", String(values.shares || 0));
-      formData.append("amount", String(values.amount || 0));
+      formData.append("shares", String(values.shares ?? 0));
+      formData.append("amount", String(values.amount ?? 0));
       formData.append("investor", values.investor || "");
       formData.append("security_type", values.security_type || "");
 
@@ -132,12 +140,15 @@ export default function FinancePage() {
       message.success("투자 이력 등록 완료 ✅");
       form.resetFields();
       fetchInvestments();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("POST /investments error:", err?.response?.data || err);
       message.error("투자 이력 등록 실패 ❌");
     }
   };
 
+  // -----------------------------
+  // 수정 모달 열기
+  // -----------------------------
   const openEditModal = (record: Investment) => {
     setEditingInvestment(record);
     editForm.setFieldsValue({
@@ -156,6 +167,9 @@ export default function FinancePage() {
     setEditModalOpen(true);
   };
 
+  // -----------------------------
+  // 투자 이력 수정 (PUT /investments/{id})
+  // -----------------------------
   const handleEditSubmit = async (values: any) => {
     if (!editingInvestment) return;
     try {
@@ -173,8 +187,8 @@ export default function FinancePage() {
           ? values.registration_date.format("YYYY-MM-DD")
           : ""
       );
-      formData.append("shares", String(values.shares || 0));
-      formData.append("amount", String(values.amount || 0));
+      formData.append("shares", String(values.shares ?? 0));
+      formData.append("amount", String(values.amount ?? 0));
       formData.append("investor", values.investor || "");
       formData.append("security_type", values.security_type || "");
 
@@ -190,23 +204,29 @@ export default function FinancePage() {
       setEditModalOpen(false);
       setEditingInvestment(null);
       fetchInvestments();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("PUT /investments error:", err?.response?.data || err);
       message.error("투자 이력 수정 실패 ❌");
     }
   };
 
+  // -----------------------------
+  // 투자 이력 삭제 (DELETE /investments/{id})
+  // -----------------------------
   const handleDelete = async (record: Investment) => {
     try {
       await axios.delete(`${API_BASE_URL}/investments/${record.id}`);
       message.success("투자 이력 삭제 완료 ✅");
       fetchInvestments();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("DELETE /investments error:", err?.response?.data || err);
       message.error("투자 이력 삭제 실패 ❌");
     }
   };
 
+  // -----------------------------
+  // 테이블 컬럼
+  // -----------------------------
   const investmentColumns = [
     {
       title: "라운드",
@@ -281,6 +301,7 @@ export default function FinancePage() {
       label: "투자 현황",
       children: (
         <>
+          {/* 투자 입력 폼 */}
           <div
             style={{
               padding: 16,
@@ -318,20 +339,15 @@ export default function FinancePage() {
                 <InputNumber
                   placeholder="주식수"
                   min={0}
-                  formatter={(value: string | number | null | undefined) =>
+                  formatter={(value: any) =>
                     value == null || value === ""
                       ? ""
-                      : String(value).replace(
-                          /\B(?=(\d{3})+(?!\d))/g,
-                          ","
-                        )
+                      : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
-                  parser={(value: string | number | null | undefined) =>
+                  parser={(value: any) =>
                     value == null || value === ""
                       ? 0
-                      : Number(
-                          String(value).replace(/,/g, "")
-                        )
+                      : Number(String(value).replace(/,/g, ""))
                   }
                 />
               </Form.Item>
@@ -343,20 +359,15 @@ export default function FinancePage() {
                 <InputNumber
                   placeholder="투자금"
                   min={0}
-                  formatter={(value: string | number | null | undefined) =>
+                  formatter={(value: any) =>
                     value == null || value === ""
                       ? ""
-                      : String(value).replace(
-                          /\B(?=(\d{3})+(?!\d))/g,
-                          ","
-                        )
+                      : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                   }
-                  parser={(value: string | number | null | undefined) =>
+                  parser={(value: any) =>
                     value == null || value === ""
                       ? 0
-                      : Number(
-                          String(value).replace(/,/g, "")
-                        )
+                      : Number(String(value).replace(/,/g, ""))
                   }
                 />
               </Form.Item>
@@ -391,6 +402,7 @@ export default function FinancePage() {
             </Form>
           </div>
 
+          {/* 투자 이력 테이블 */}
           <Table
             columns={investmentColumns}
             dataSource={investments}
@@ -400,6 +412,7 @@ export default function FinancePage() {
             style={{ marginBottom: 24 }}
           />
 
+          {/* 주주 현황 카드 */}
           <Card
             title="주주 현황"
             style={{ borderRadius: 12 }}
@@ -466,6 +479,7 @@ export default function FinancePage() {
           투자, 재무지표, 매출 현황을 통합 관리합니다.
         </Text>
 
+        {/* 상단 KPI 카드 */}
         <Space style={{ marginTop: 24, marginBottom: 16 }} size={16}>
           <Card
             style={{
@@ -536,6 +550,7 @@ export default function FinancePage() {
           style={{ marginTop: 8 }}
         />
 
+        {/* 수정 모달 */}
         <Modal
           open={editModalOpen}
           title="투자 이력 수정"
@@ -574,17 +589,15 @@ export default function FinancePage() {
               <InputNumber
                 min={0}
                 style={{ width: "100%" }}
-                formatter={(value: string | number | null | undefined) =>
+                formatter={(value: any) =>
                   value == null || value === ""
                     ? ""
                     : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
-                parser={(value: string | number | null | undefined) =>
+                parser={(value: any) =>
                   value == null || value === ""
                     ? 0
-                    : Number(
-                        String(value).replace(/,/g, "")
-                      )
+                    : Number(String(value).replace(/,/g, ""))
                 }
               />
             </Form.Item>
@@ -597,17 +610,15 @@ export default function FinancePage() {
               <InputNumber
                 min={0}
                 style={{ width: "100%" }}
-                formatter={(value: string | number | null | undefined) =>
+                formatter={(value: any) =>
                   value == null || value === ""
                     ? ""
                     : String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
                 }
-                parser={(value: string | number | null | undefined) =>
+                parser={(value: any) =>
                   value == null || value === ""
                     ? 0
-                    : Number(
-                        String(value).replace(/,/g, "")
-                      )
+                    : Number(String(value).replace(/,/g, ""))
                 }
               />
             </Form.Item>
