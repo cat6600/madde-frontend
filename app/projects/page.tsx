@@ -41,7 +41,7 @@ interface Project {
   budget?: number;
   status?: string;
   due_date?: string | null;
-  participants?: string; // 이제 화면에선 '과제명' 텍스트로 사용
+  participants?: string; // 화면에서는 '과제명' 텍스트로 사용
   files?: string[];
   last_updated?: string;
 }
@@ -151,23 +151,37 @@ export default function ProjectsPage() {
   /** 📋 테이블 컬럼 */
   const columns = [
     {
-      title: "과제명",
+      // 🔁 1열: 과제명 → 사업명 (DB 필드는 그대로 title)
+      title: "사업명",
       dataIndex: "title",
       key: "title",
-      width: 260, // 과제명 칸 여유 있게
+      width: 260,
     },
     {
       title: "주관기관",
       dataIndex: "organization",
       key: "organization",
-      width: 180, // 과제명 확보를 위해 조금 줄임
-      render: (t: string) => <Tag color="purple">{t}</Tag>,
+      width: 150, // 폭 줄이기
+      render: (t: string) => (
+        <Tag
+          color="purple"
+          style={{
+            maxWidth: 130,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "inline-block",
+          }}
+        >
+          {t}
+        </Tag>
+      ),
     },
     {
       title: "유형",
       dataIndex: "type",
       key: "type",
-      width: 120,
+      width: 110,
       render: (t: string) => (
         <Tag color={t === "R&D" ? "blue" : "green"}>{t}</Tag>
       ),
@@ -177,7 +191,7 @@ export default function ProjectsPage() {
       title: "지원금",
       dataIndex: "budget",
       key: "budget",
-      width: 130,
+      width: 120,
       render: (v: number | null) => {
         if (v === undefined || v === null || isNaN(Number(v))) return "—";
         return `${Number(v).toLocaleString()}억 원`;
@@ -187,14 +201,14 @@ export default function ProjectsPage() {
       title: "상태",
       dataIndex: "status",
       key: "status",
-      width: 120,
+      width: 110,
       render: (s: string) => (
         <Tag color={statusColors[s] || "default"}>{s}</Tag>
       ),
     },
-    { title: "신청 마감일", dataIndex: "due_date", key: "due_date", width: 140 },
+    { title: "신청 마감일", dataIndex: "due_date", key: "due_date", width: 130 },
     {
-      // 🔁 기존 '참여자' → '과제명' (텍스트 필드)
+      // 🔁 participants를 '과제명'으로 노출
       title: "과제명",
       dataIndex: "participants",
       key: "participants",
@@ -202,23 +216,35 @@ export default function ProjectsPage() {
     {
       title: "작업",
       key: "actions",
+      width: 140,
       render: (_: any, record: Project) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            수정
-          </Button>
+        <Space size="small">
+          {/* 아이콘만 있는 작은 버튼들로 컴팩트하게 */}
           <Button
+            size="small"
+            type="text"
+            icon={<EditOutlined />}
+            title="수정"
+            onClick={() => handleEdit(record)}
+          />
+          <Button
+            size="small"
+            type="text"
             danger
             icon={<DeleteOutlined />}
+            title="삭제"
             onClick={() => handleDelete(record.id)}
-          >
-            삭제
-          </Button>
+          />
           <Upload
             beforeUpload={(file) => handleFileUpload(record.id, file)}
             showUploadList={false}
           >
-            <Button icon={<UploadOutlined />}>파일</Button>
+            <Button
+              size="small"
+              type="text"
+              icon={<UploadOutlined />}
+              title="파일 업로드"
+            />
           </Upload>
         </Space>
       ),
@@ -264,6 +290,8 @@ export default function ProjectsPage() {
             rowKey="id"
             loading={loading}
             pagination={false}
+            size="middle"
+            scroll={{ x: 1100 }} // 컬럼 width 반영되도록
             onRow={(record) => ({
               onClick: () => handleRowClick(record as Project),
             })}
@@ -365,8 +393,8 @@ export default function ProjectsPage() {
           <Form form={form} onFinish={handleAddOrUpdate} layout="vertical">
             <Form.Item
               name="title"
-              label="과제명"
-              rules={[{ required: true, message: "과제명을 입력해주세요" }]}
+              label="사업명"
+              rules={[{ required: true, message: "사업명을 입력해주세요" }]}
             >
               <Input />
             </Form.Item>
@@ -388,11 +416,8 @@ export default function ProjectsPage() {
             <Form.Item name="due_date" label="신청 마감일">
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item
-              name="participants"
-              label="과제명"
-            >
-              <Input placeholder="예: 내부 과제명 / 별칭" />
+            <Form.Item name="participants" label="과제명">
+              <Input placeholder="예: 내부 과제명 / 세부 과제명" />
             </Form.Item>
           </Form>
         </Modal>
