@@ -41,7 +41,7 @@ interface Project {
   budget?: number;
   status?: string;
   due_date?: string | null;
-  participants?: string;
+  participants?: string; // 이제 화면에선 '과제명' 텍스트로 사용
   files?: string[];
   last_updated?: string;
 }
@@ -77,13 +77,9 @@ export default function ProjectsPage() {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      await axios.post(
-        `${API_BASE_URL}/projects/${id}/upload`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      await axios.post(`${API_BASE_URL}/projects/${id}/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       message.success("파일 업로드 완료 ✅");
       fetchProjects();
     } catch {
@@ -122,17 +118,12 @@ export default function ProjectsPage() {
   const handleAddOrUpdate = async (values: any) => {
     const payload = {
       ...values,
-      due_date: values.due_date
-        ? values.due_date.format("YYYY-MM-DD")
-        : null,
+      due_date: values.due_date ? values.due_date.format("YYYY-MM-DD") : null,
     };
 
     try {
       if (isEditMode && currentId !== null) {
-        await axios.put(
-          `${API_BASE_URL}/projects/${currentId}`,
-          payload
-        );
+        await axios.put(`${API_BASE_URL}/projects/${currentId}`, payload);
         message.success("과제 수정 완료 ✅");
       } else {
         await axios.post(`${API_BASE_URL}/projects`, payload);
@@ -159,26 +150,34 @@ export default function ProjectsPage() {
 
   /** 📋 테이블 컬럼 */
   const columns = [
-    { title: "과제명", dataIndex: "title", key: "title" },
+    {
+      title: "과제명",
+      dataIndex: "title",
+      key: "title",
+      width: 260, // 과제명 칸 여유 있게
+    },
     {
       title: "주관기관",
       dataIndex: "organization",
       key: "organization",
+      width: 180, // 과제명 확보를 위해 조금 줄임
       render: (t: string) => <Tag color="purple">{t}</Tag>,
     },
     {
       title: "유형",
       dataIndex: "type",
       key: "type",
+      width: 120,
       render: (t: string) => (
         <Tag color={t === "R&D" ? "blue" : "green"}>{t}</Tag>
       ),
     },
-    { title: "수행기간", dataIndex: "period", key: "period" },
+    { title: "수행기간", dataIndex: "period", key: "period", width: 220 },
     {
       title: "지원금",
       dataIndex: "budget",
       key: "budget",
+      width: 130,
       render: (v: number | null) => {
         if (v === undefined || v === null || isNaN(Number(v))) return "—";
         return `${Number(v).toLocaleString()}억 원`;
@@ -188,12 +187,18 @@ export default function ProjectsPage() {
       title: "상태",
       dataIndex: "status",
       key: "status",
+      width: 120,
       render: (s: string) => (
         <Tag color={statusColors[s] || "default"}>{s}</Tag>
       ),
     },
-    { title: "신청 마감일", dataIndex: "due_date", key: "due_date" },
-    { title: "참여자", dataIndex: "participants", key: "participants" },
+    { title: "신청 마감일", dataIndex: "due_date", key: "due_date", width: 140 },
+    {
+      // 🔁 기존 '참여자' → '과제명' (텍스트 필드)
+      title: "과제명",
+      dataIndex: "participants",
+      key: "participants",
+    },
     {
       title: "작업",
       key: "actions",
@@ -303,10 +308,8 @@ export default function ProjectsPage() {
               원
             </p>
             <p>📆 신청 마감일: {selectedProject.due_date || "—"}</p>
-            <p>👥 참여자: {selectedProject.participants || "—"}</p>
-            <p>
-              🕓 최근 수정일: {selectedProject.last_updated || "—"}
-            </p>
+            <p>📌 과제명: {selectedProject.participants || "—"}</p>
+            <p>🕓 최근 수정일: {selectedProject.last_updated || "—"}</p>
 
             <Card
               title="📎 관련 문서"
@@ -385,8 +388,11 @@ export default function ProjectsPage() {
             <Form.Item name="due_date" label="신청 마감일">
               <DatePicker style={{ width: "100%" }} />
             </Form.Item>
-            <Form.Item name="participants" label="참여자">
-              <Input placeholder="예: 김철수, 이영희" />
+            <Form.Item
+              name="participants"
+              label="과제명"
+            >
+              <Input placeholder="예: 내부 과제명 / 별칭" />
             </Form.Item>
           </Form>
         </Modal>
