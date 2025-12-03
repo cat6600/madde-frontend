@@ -33,7 +33,7 @@ interface IRRecord {
   folder: string | null;
   upload_date: string;
   size: number;
-  // ✅ 백엔드가 추가로 내려주는 Supabase 파일 URL
+  // 백엔드에서 내려주는 파일 URL (Supabase 또는 /uploads/상대경로)
   file_url?: string | null;
 }
 
@@ -50,17 +50,16 @@ export default function IRPage() {
   // 🔹 탭 상태 (전체 / IR / 사진 / 영상 / 기타)
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
-useEffect(() => {
-  console.log("🔍 API_BASE_URL =", API_BASE_URL);
-}, []);
-
+  // 디버그용: 실제 API_BASE_URL 확인
+  useEffect(() => {
+    console.log("🔍 API_BASE_URL =", API_BASE_URL);
+  }, []);
 
   // ---- 목록 조회 ----
   const fetchData = async (tab: TabKey) => {
     try {
       setLoading(true);
       const params: any = {};
-      // "전체"가 아닌 탭이면 category 쿼리로 보냄
       if (tab !== "all") {
         params.category = tab;
       }
@@ -96,7 +95,7 @@ useEffect(() => {
       setUploading(true);
 
       const formData = new FormData();
-      // ✅ 여러 파일을 같은 키 "file"로 append → 백엔드 file: List[UploadFile]
+      // 여러 파일을 같은 키 "file"로 append → 백엔드 file: List[UploadFile]
       Array.from(selectedFiles).forEach((file) => {
         formData.append("file", file);
       });
@@ -117,7 +116,6 @@ useEffect(() => {
       ) as HTMLInputElement | null;
       if (el) el.value = "";
 
-      // 업로드 후, 현재 탭 기준으로 다시 조회
       fetchData(activeTab);
     } catch (error) {
       console.error(error);
@@ -176,15 +174,18 @@ useEffect(() => {
       key: "view",
       width: 100,
       render: (_: any, record: IRRecord) => {
-        const url = record.file_url ?? "#";
-        const disabled = !record.file_url;
+        if (!record.file_url) {
+          return <span style={{ color: "#ccc" }}>없음</span>;
+        }
+
+        // Supabase면 절대 URL, 로컬이면 /uploads/... 상대경로
+        const isAbsolute = /^https?:\/\//i.test(record.file_url);
+        const href = isAbsolute
+          ? record.file_url
+          : `${API_BASE_URL}${record.file_url}`;
+
         return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            style={disabled ? { pointerEvents: "none", color: "#ccc" } : {}}
-          >
+          <a href={href} target="_blank" rel="noreferrer">
             보기
           </a>
         );
